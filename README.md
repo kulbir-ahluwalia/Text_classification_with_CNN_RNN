@@ -11,7 +11,8 @@ conda activate nlp_tutorials
 # The PyTorch install,  pytorch-1.10.2,  supports CUDA capabilities sm_37 sm_50 sm_60 sm_70.
 # conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
 
-#NVIDIA GeForce RTX 3060 Laptop GPU with CUDA capability sm_86 is not compatible with the current PyTorch installation.
+#NVIDIA GeForce RTX 3060 Laptop GPU with CUDA capability sm_86 is not compatible with PyTorch 1.10.2 installation.
+# PyTorch 1.12.1 supports CUDA capabilities sm_86 for NVIDIA GeForce RTX 3060 Laptop GPU with cudatoolkit 11.6.0 
 
 # As of 10 Oct, the above command does not work. Use the following instead.
 #   this is because, the default cuda version is 11.6,  
