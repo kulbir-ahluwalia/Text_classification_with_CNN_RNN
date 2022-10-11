@@ -16,7 +16,7 @@ conda activate nlp_tutorials
 
 # As of 10 Oct, the above command does not work. Use the following instead.
 #   this is because, the default cuda version is 11.6,  
-#   for NVIDIA-SMI 510.85.02, Driver Version: 510.85.02 for RTX 3060
+#   for NVIDIA-SMI 510.85.02, Driver Version: 510.85.02 for RTX 3060s
 # 
 conda install pytorch torchvision torchaudio cudatoolkit=11.6 -c pytorch -c conda-forge
 pip install torchtext tabulate
@@ -27,4 +27,15 @@ To convert jupyter notebook to python script, run the following command:
 ```zsh
  jupyter nbconvert --to python hwk2.ipynb 
 ```
+
+```zsh
+conda create --name nlp_cuda116_python3_9 python=3.9   # for cuda 11.6, pytorch 1.12.1
+conda activate nlp_cuda116_python3_9 
+conda install astunparse numpy ninja pyyaml mkl mkl-include setuptools cmake cffi typing_extensions future six requests dataclasses
+conda install -c pytorch magma-cuda116
+conda install pytorch torchvision torchaudio cudatoolkit=11.6 -c pytorch -c conda-forge
+conda install jupyter   
+```
+
+
 
