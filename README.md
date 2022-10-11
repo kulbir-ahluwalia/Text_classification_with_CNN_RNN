@@ -11,13 +11,16 @@ conda activate nlp_tutorials
 # The PyTorch install,  pytorch-1.10.2,  supports CUDA capabilities sm_37 sm_50 sm_60 sm_70.
 # conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
 
+
+#   DOES not work ==> cuda version 11.6, for NVIDIA-SMI 510.85.02, Driver Version: 510.85.02 for RTX 3060s
+
 #NVIDIA GeForce RTX 3060 Laptop GPU with CUDA capability sm_86 is not compatible with PyTorch 1.10.2 installation.
 # PyTorch 1.12.1 supports CUDA capabilities sm_86 for NVIDIA GeForce RTX 3060 Laptop GPU with cudatoolkit 11.6.0 
 
-# As of 10 Oct, the above command does not work. Use the following instead.
-#   this is because, the default cuda version is 11.6,  
-#   for NVIDIA-SMI 510.85.02, Driver Version: 510.85.02 for RTX 3060s
-# 
+# As of 10 Oct 2022, the above command does not work. Use the following instead.
+# NVIDIA-SMI 515.65.01    Driver Version: 515.65.01    CUDA Version: 11.7
+# this can be installed using "NVIDIA driver metapackage from nvidia-driver 515 (propriety, tested)" from "Software and Updates/ additional drivers" in Ubuntu 20.04
+# You need to have cuda 11.7, but still use the following command to install pytorch 1.12.1
 conda install pytorch torchvision torchaudio cudatoolkit=11.6 -c pytorch -c conda-forge
 pip install torchtext tabulate
 pip install torchdata
@@ -35,6 +38,13 @@ conda install astunparse numpy ninja pyyaml mkl mkl-include setuptools cmake cff
 conda install -c pytorch magma-cuda116
 conda install pytorch torchvision torchaudio cudatoolkit=11.6 -c pytorch -c conda-forge
 conda install jupyter   
+
+conda install -c conda-forge notebook
+conda install -c conda-forge nb_conda_kernels
+conda install -c conda-forge jupyterlab
+conda install -c conda-forge nb_conda_kernels
+conda install -c conda-forge jupyter_contrib_nbextensions
+
 ```
 
 
