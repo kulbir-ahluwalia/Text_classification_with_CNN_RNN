@@ -37,7 +37,7 @@ conda activate nlp_cuda116_python3_9
 conda install astunparse numpy ninja pyyaml mkl mkl-include setuptools cmake cffi typing_extensions future six requests dataclasses
 conda install -c pytorch magma-cuda116
 conda install pytorch torchvision torchaudio cudatoolkit=11.6 -c pytorch -c conda-forge
-conda install jupyter   
+conda install matplotlib pandas
 
 conda install -c conda-forge notebook
 conda install -c conda-forge nb_conda_kernels
