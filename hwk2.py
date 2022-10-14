@@ -428,19 +428,51 @@ class CNN(nn.Module):
         ##### TODO #####
         # Create an embedding layer (https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html)
         #   to represent the words in your vocabulary. Make sure to use vocab_size, embed_size, and pad_idx here.
+        # print(f" vocab size is: {vocab_size}, embed size is: {embed_size}, filter heights: {filter_heights}")
+        # number of embeddings = vocab size??
+        # embedding size = embed size? = max len??
+
+        # {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 1,
+        #  'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 10}
+        self.embedding = nn.Embedding(vocab_size, embed_size, padding_idx=pad_idx)
+        # self.embedding = nn.Embedding(vocab_size, embed_size)
+        #self.embedding is learnable
+
+        # print(f"weights of embedding: {self.embedding.weight}")
+
 
         # Define multiple Convolution layers (nn.Conv2d) with filter (kernel) size [filter_height, embed_size] based on your 
         #   different filter_heights.
-        # Input channels will be 1 and output channels will be out_channels (these many different filters will be trained 
+        # Input channels will be 1 and output channels will be out_channels (these many different filters will be trained
         #   for each convolution layer)
+
+
         # If you want, you can store a list of modules inside nn.ModuleList.
+        self.conv_module_list = nn.ModuleList([nn.Conv2d(in_channels=1, out_channels=32, kernel_size=(filter_height, embed_size), stride=stride) for filter_height in filter_heights])
+        # print(f"conv module list is: {self.conv_module_list}")
+
+        self.conv_model_outputs = {}
+
+        # conv module list is: ModuleList(
+        #                                   (0): Conv2d(1, 32, kernel_size=(3, 32), stride=(1, 1))
+        #                                   (1): Conv2d(1, 32, kernel_size=(4, 32), stride=(1, 1))
+        #                                   (2): Conv2d(1, 32, kernel_size=(5, 32), stride=(1, 1))
+        #                                 )
+
+        # self.maxpool = nn.MaxPool1d()
+
         # Note: even though your conv layers are nn.Conv2d, we are doing a 1d convolution since we are only moving the filter 
         #   in one direction
 
         # Create a dropout layer (nn.Dropout) using dropout
+        self.dropout_layer = nn.Dropout(dropout)
 
-        # Define a linear layer (nn.Linear) that consists of num_classes units 
-        #   and takes as input the concatenated output for all cnn layers (out_channels * num_of_cnn_layers units)
+        # Define a linear layer (nn.Linear) that consists of num_classes units
+        #   and takes as input the $concatenated output$ for all cnn layers (out_channels * num_of_cnn_layers units) ???
+
+        self.dense_layer = nn.Linear(out_channels * len(filter_heights), num_classes)
+        # another dense layer
+        # self.d2 = nn.Linear(128, 10)
 
 
     def forward(self, texts):
@@ -451,19 +483,75 @@ class CNN(nn.Module):
         """
         ##### TODO #####
 
+        print('Content of texts:', texts)
+        print('Shape of texts:', texts.shape, '\n')
+        print('Type of texts:', texts.dtype, '\n')
+
         # Pass texts through your embedding layer to convert from word ids to word embeddings
         #   Resulting: shape: [batch_size, max_len, embed_size]
 
+        # for text in texts:
+        #     print("text: ", text)
+        #     embedding = self.embedding(text)
+
+        # texts = torch.LongTensor(texts)
+        # print('Content of texts:', texts)
+        # print('Shape of texts:', texts.shape, '\n')
+        # print('Type of texts:', texts.dtype, '\n')
+
+        # {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 1,
+        #  'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 10}
+        final_embedding = [self.embedding(text.type(torch.int64)) for text in texts]
+        print(f"final embedding is: {final_embedding}")
+
+
+        print('Content of embedding:', final_embedding)
+        print('Shape of embedding:', final_embedding.shape, '\n')
+        print('Type of embedding:', final_embedding.dtype, '\n')
+
         # Input to conv should have 1 channel. Take a look at torch's unsqueeze() function
         #   Resulting shape: [batch_size, 1, MAX_LEN, embed_size]
-        
+        # for i in range(1, len(filter_heights)+1):
+        #
+        #     name_conv = 'conv' + str(i)
+        #     print(i, name_conv)
+
+        # how will we know how many filter are there?
+
+        y = torch.unsqueeze(final_embedding, 1)
+
         # Pass these texts to each of your conv layers and compute their output as follows:
         #   Your cnn output will have shape [batch_size, out_channels, *, 1] where * depends on filter_height and stride
         #   Convert to shape [batch_size, out_channels, *] (see torch's squeeze() function)
-        #   Apply non-linearity on it (F.relu() is a commonly used one. Feel free to try others)
-        #   Take the max value across last dimension to have shape [batch_size, out_channels]
-        # Concatenate (torch.cat) outputs from all your cnns [batch_size, (out_channels*num_of_cnn_layers)]
+        #   Apply non-linearity on it (F.relu() is a commonly used
+        #   one. Feel free to try others)
+
+
+        for i, conv_model in enumerate(self.conv_module_list):
+            print(f"i: {i}, l: {l}")
+            x = conv_model(y)
+            x1_squeezed = torch.squeeze(x, dim=3)
+            x1_squeezed = F.relu(x1_squeezed) #??? #TODO: apply non linearity here??
+            self.conv_model_outputs[i] = x1_squeezed
+
+        list_to_be_concatenated = []
+
+        for i, conv_output in self.conv_model_outputs.items():
+            print(f"i: {i}, conv_output: {conv_output}, conv output shape: {conv_output.shape}")
+            list_to_be_concatenated.append(conv_output)
+
         #
+        # print('Content of c3:', c3_squeezed)
+        # print('Shape of c3:', c3_squeezed.shape, '\n')
+        # print('Type of c3:', c3_squeezed.dtype, '\n')
+
+        #   Take the max value across last dimension to have shape [batch_size, out_channels] ??? #TODO: how and why?
+        #  Concatenate (torch.cat) outputs from all your cnns [batch_size, (out_channels*num_of_cnn_layers)]
+        #
+
+        print(f"list to be concatenated is: {list_to_be_concatenated}")
+        # concatenated = torch.cat([c1_squeezed, c2_squeezed, c3_squeezed])
+        # concatenated = torch.cat(list_to_be_concatenated, dim=0)
 
         # Let's understand what you just did:
         #   Since each cnn is of different filter_height, it will look at different number of words at a time
@@ -474,12 +562,15 @@ class CNN(nn.Module):
         # Everything happens on a batch simultaneously hence you have that additional batch_size as the first dimension
 
         # Apply dropout
-
+        # dropout = self.dropout_layer(concatenated)
         # Pass your output through the linear layer and return its output 
         #   Resulting shape: [batch_size, num_classes]
+        # linear = torch.LongTensor(self.dense_layer(dropout))
 
         ##### NOTE: Do not apply a sigmoid or softmax to the final output - done in training method!
 
+
+        # return linear
         return None
 
 
@@ -495,7 +586,7 @@ class CNN(nn.Module):
 count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 def sanityCheckModel(all_test_params, NN, expected_outputs, init_or_forward, data_loader):
-    print('--- TEST: ' + ('Number of Model Parameters (tests __init__(...))' if init_or_forward=='init' else 'Output shape of forward(...)') + ' ---')
+    # print('--- TEST: ' + ('Number of Model Parameters (tests __init__(...))' if init_or_forward=='init' else 'Output shape of forward(...)') + ' ---')
     
     if init_or_forward == "forward":
         # Reading the first batch of data for testing
@@ -526,7 +617,7 @@ def sanityCheckModel(all_test_params, NN, expected_outputs, init_or_forward, dat
 
             status = 'PASSED' if has_passed else 'FAILED'
             message = '\t' + status + "\t Init Input: " + str({k:v for k,v in tps.items()}) + '\tForward Input Shape: ' + str(texts.shape) + '\tExpected Output Shape: ' + str(ref_out_shape) + '\t' + msg
-            print(message)
+            # print(message)
         else:
             stu_num_params = count_parameters(stu_nn)
             ref_num_params = expected_output
@@ -534,7 +625,7 @@ def sanityCheckModel(all_test_params, NN, expected_outputs, init_or_forward, dat
 
             status = 'PASSED' if comparison_result else 'FAILED'
             message = '\t' + status + "\tInput: " + str({k:v for k,v in test_params.items()}) + ('\tExpected Num. Params: ' + str(ref_num_params) + '\tYour Num. Params: '+ str(stu_num_params))
-            print(message)
+            # print(message)
 
         del stu_nn
 
@@ -548,12 +639,39 @@ if __name__ == '__main__':
     print()
 
     # Test forward
-    inputs = [{'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}]
+    inputs = [{'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 10}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 32, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [3, 4, 5], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 1, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 1}, {'vocab_size': 29730, 'embed_size': 32, 'out_channels': 128, 'filter_heights': [5, 10], 'stride': 3, 'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 20}]
     expected_outputs = [torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2]), torch.Size([1, 2]), torch.Size([20, 2])]
     sanity_dataset = TextDataset(train_data, 'train', 5, 150)
     sanity_loader = torch.utils.data.DataLoader(sanity_dataset, batch_size=50, shuffle=True, num_workers=2, drop_last=True)
 
     sanityCheckModel(inputs, CNN, expected_outputs, "forward", sanity_loader)
+
+
+# In[ ]:
+
+
+class MyModule(nn.Module):
+    def __init__(self):
+        super(MyModule, self).__init__()
+        self.linears = nn.ModuleList([nn.Linear(10, 10) for i in range(10)])
+
+    def forward(self, x):
+        # ModuleList can act as an iterable, or be indexed using ints
+        for i, l in enumerate(self.linears):
+            print(f"i: {i}, l: {l}")
+
+            first_part = self.linears[i // 2](x)
+            second_part =  l(x)
+            x = first_part + second_part
+
+        return x
+
+
+# In[ ]:
+
+
+test_object = MyModule()
+test_object.forward(torch.ones(10,10))
 
 
 # ## Train CNN Model
