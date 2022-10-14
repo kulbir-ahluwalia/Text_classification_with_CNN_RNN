@@ -47,5 +47,10 @@ conda install -c conda-forge jupyter_contrib_nbextensions
 
 ```
 
+To convert to hw2.py, run the following command:
+```zsh
+jupyter nbconvert --to python hwk2.ipynb  
+```
+
 
 

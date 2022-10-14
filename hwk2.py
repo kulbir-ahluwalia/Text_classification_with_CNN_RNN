@@ -15,7 +15,7 @@
 # 
 # As usual, you should not import any other libraries.
 
-# In[1]:
+# In[ ]:
 
 
 ### DO NOT EDIT ###
@@ -35,7 +35,7 @@ if __name__=='__main__':
 # 
 # 
 
-# In[2]:
+# In[ ]:
 
 
 get_ipython().system('pip install torchdata')
@@ -46,7 +46,7 @@ get_ipython().system('pip install torchdata')
 # *   To access the list of textual tokens for the *i*th example, use `train_data[i][1]`
 # *   To access the label for the *i*th example, use `train_data[i][0]`
 
-# In[3]:
+# In[ ]:
 
 
 ### DO NOT EDIT ###
@@ -120,7 +120,7 @@ if __name__=='__main__':
 # 
 # <font color='green'><b>Hint:</b> Make sure that you use instance variables such as `self.threshold` throughout your code, rather than the global variable `THRESHOLD` (defined later on). The variable `THRESHOLD` will not be known to the autograder, and the use of it within the class will cause an autograder error.</font>
 
-# In[4]:
+# In[ ]:
 
 
 PAD = '<PAD>'
@@ -311,7 +311,7 @@ class TextDataset(data.Dataset):
 # 
 # The code below runs a sanity check for your `Dataset` class. The tests are similar to the hidden ones in Gradescope. However, note that passing the sanity check does <b>not</b> guarantee that you will pass the autograder; it is intended to help you debug.
 
-# In[5]:
+# In[ ]:
 
 
 ### DO NOT EDIT ###
@@ -388,7 +388,7 @@ if __name__ == '__main__':
 
 # The following cell builds the dataset on the IMDb movie reviews and prints an example:
 
-# In[6]:
+# In[ ]:
 
 
 ### DO NOT EDIT ###
@@ -414,7 +414,7 @@ if __name__=='__main__':
 # 
 # We have provided you with instructions and hints in the comments. In particular, pay attention to the desired shapes; you may find it helpful to print the shape of the tensors as you code. It may also help to keep PyTorch documentation open for the modules & functions you are using, since they describe input and output dimensions.
 
-# In[7]:
+# In[ ]:
 
 
 import torch
@@ -431,9 +431,6 @@ class CNN(nn.Module):
         # print(f" vocab size is: {vocab_size}, embed size is: {embed_size}, filter heights: {filter_heights}")
         # number of embeddings = vocab size??
         # embedding size = embed size? = max len??
-
-        # {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 1,
-        #  'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 10}
         self.embedding = nn.Embedding(vocab_size, embed_size, padding_idx=pad_idx)
         # self.embedding = nn.Embedding(vocab_size, embed_size)
         #self.embedding is learnable
@@ -459,7 +456,7 @@ class CNN(nn.Module):
         #                                   (2): Conv2d(1, 32, kernel_size=(5, 32), stride=(1, 1))
         #                                 )
 
-        # self.maxpool = nn.MaxPool1d()
+        self.maxpool = nn.MaxPool1d(2)
 
         # Note: even though your conv layers are nn.Conv2d, we are doing a 1d convolution since we are only moving the filter 
         #   in one direction
@@ -499,26 +496,24 @@ class CNN(nn.Module):
         # print('Shape of texts:', texts.shape, '\n')
         # print('Type of texts:', texts.dtype, '\n')
 
-        # {'vocab_size': 29730, 'embed_size': 16, 'out_channels': 32, 'filter_heights': [3, 4, 5], 'stride': 1,
-        #  'dropout': 0, 'num_classes': 2, 'pad_idx': 0, 'batch_size': 10}
-        final_embedding = [self.embedding(text.type(torch.int64)) for text in texts]
-        print(f"final embedding is: {final_embedding}")
 
+        # final_embedding = [self.embedding(text.type(torch.int64)) for text in texts]
 
-        print('Content of embedding:', final_embedding)
+        #how to send in the batch??
+        final_embedding = self.embedding(texts)
+
+        # print(f"final embedding is: {final_embedding}")
+
+        # final_embedding = torch.stack([i for i in final_embedding])
+
+        # print('Content of embedding:', final_embedding)
         print('Shape of embedding:', final_embedding.shape, '\n')
         print('Type of embedding:', final_embedding.dtype, '\n')
 
         # Input to conv should have 1 channel. Take a look at torch's unsqueeze() function
         #   Resulting shape: [batch_size, 1, MAX_LEN, embed_size]
-        # for i in range(1, len(filter_heights)+1):
-        #
-        #     name_conv = 'conv' + str(i)
-        #     print(i, name_conv)
-
-        # how will we know how many filter are there?
-
         y = torch.unsqueeze(final_embedding, 1)
+
 
         # Pass these texts to each of your conv layers and compute their output as follows:
         #   Your cnn output will have shape [batch_size, out_channels, *, 1] where * depends on filter_height and stride
@@ -526,32 +521,35 @@ class CNN(nn.Module):
         #   Apply non-linearity on it (F.relu() is a commonly used
         #   one. Feel free to try others)
 
+        list_to_be_concatenated = []
 
         for i, conv_model in enumerate(self.conv_module_list):
-            print(f"i: {i}, l: {l}")
+            print(f"i: {i}, conv_model: {conv_model}")
             x = conv_model(y)
             x1_squeezed = torch.squeeze(x, dim=3)
             x1_squeezed = F.relu(x1_squeezed) #??? #TODO: apply non linearity here??
+            #
+            list_to_be_concatenated.append(x1_squeezed)
             self.conv_model_outputs[i] = x1_squeezed
-
-        list_to_be_concatenated = []
-
-        for i, conv_output in self.conv_model_outputs.items():
-            print(f"i: {i}, conv_output: {conv_output}, conv output shape: {conv_output.shape}")
-            list_to_be_concatenated.append(conv_output)
-
-        #
-        # print('Content of c3:', c3_squeezed)
-        # print('Shape of c3:', c3_squeezed.shape, '\n')
-        # print('Type of c3:', c3_squeezed.dtype, '\n')
 
         #   Take the max value across last dimension to have shape [batch_size, out_channels] ??? #TODO: how and why?
         #  Concatenate (torch.cat) outputs from all your cnns [batch_size, (out_channels*num_of_cnn_layers)]
         #
+        list_to_be_concatenated_tensor = torch.stack([i for i in list_to_be_concatenated])
+        print(f"list_to_be_concatenated_tensor is: {list_to_be_concatenated_tensor}, shape: {list_to_be_concatenated_tensor.shape}")
 
-        print(f"list to be concatenated is: {list_to_be_concatenated}")
+        pool = self.maxpool(list_to_be_concatenated_tensor)
+        print(f"pool is: {pool}, shape: {pool.shape}")
+
+        for i, conv_output in self.conv_model_outputs.items():
+            print(f"i: {i}, conv_output: {conv_output}, conv output shape: {conv_output.shape}")
+            # list_to_be_concatenated.append(conv_output)
+
+
+
+
         # concatenated = torch.cat([c1_squeezed, c2_squeezed, c3_squeezed])
-        # concatenated = torch.cat(list_to_be_concatenated, dim=0)
+        concatenated = torch.cat(pool, dim=0)
 
         # Let's understand what you just did:
         #   Since each cnn is of different filter_height, it will look at different number of words at a time
@@ -562,23 +560,23 @@ class CNN(nn.Module):
         # Everything happens on a batch simultaneously hence you have that additional batch_size as the first dimension
 
         # Apply dropout
-        # dropout = self.dropout_layer(concatenated)
+        dropout = self.dropout_layer(concatenated)
         # Pass your output through the linear layer and return its output 
         #   Resulting shape: [batch_size, num_classes]
-        # linear = torch.LongTensor(self.dense_layer(dropout))
+        linear = torch.LongTensor(self.dense_layer(dropout))
 
         ##### NOTE: Do not apply a sigmoid or softmax to the final output - done in training method!
 
 
-        # return linear
-        return None
+        return linear
+        # return None
 
 
 # ##Sanity Check: CNN Model
 # 
 # The code below runs a sanity check for your `CNN` class. The tests are similar to the hidden ones in Gradescope. However, note that passing the sanity check does <b>not</b> guarantee that you will pass the autograder; it is intended to help you debug.
 
-# In[8]:
+# In[ ]:
 
 
 ### DO NOT EDIT ###
