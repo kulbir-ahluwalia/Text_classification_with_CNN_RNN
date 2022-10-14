@@ -256,8 +256,8 @@ class TextDataset(data.Dataset):
             padding = [self.word2idx[PAD]] * (self.max_len - len(indice_review))
             padded_version = indice_review + padding
             # print(f"padding list is: {padding} and padded version: {padded_version}")
-            # indice_review_long_tensor = torch.LongTensor(padded_version)
-            indice_review_long_tensor = torch.Tensor(padded_version)
+            indice_review_long_tensor = torch.LongTensor(padded_version)
+            # indice_review_long_tensor = torch.Tensor(padded_version)
 
 
         # print('Content of indice_review_long_tensor:', indice_review_long_tensor)
@@ -278,14 +278,14 @@ class TextDataset(data.Dataset):
         # print(f"review label: {review_label}")
 
         if review_label == 'pos':
-            # return torch.squeeze(torch.LongTensor(1))
+            return torch.squeeze(torch.LongTensor([1]))
             # print('Shape of torch.squeeze(torch.Tensor(1)):', torch.squeeze(torch.Tensor(1)).shape, '\n')
-            return torch.squeeze(torch.Tensor([1]))
+            # return torch.squeeze(torch.Tensor([1]))
 
         elif review_label == 'neg':
-            # return torch.squeeze(torch.LongTensor(0))
+            return torch.squeeze(torch.LongTensor([0]))
             # print('Shape of torch.squeeze(torch.Tensor(0)):', torch.squeeze(torch.Tensor(0)).shape, '\n')
-            return torch.squeeze(torch.Tensor([0]))
+            # return torch.squeeze(torch.Tensor([0]))
 
 
 
@@ -562,7 +562,7 @@ if __name__ == '__main__':
 # 
 # You do not need to edit this cell.
 
-# In[9]:
+# In[ ]:
 
 
 if __name__=='__main__':
@@ -581,7 +581,7 @@ if __name__=='__main__':
 # 
 # You do not need to edit this cell. However, you may want to write code to save your model periodically, as Colab connections are not permanent. See the tutorial here if you wish to do this: https://pytorch.org/tutorials/beginner/saving_loading_models.html.
 
-# In[10]:
+# In[ ]:
 
 
 ### DO NOT EDIT ###
@@ -615,7 +615,7 @@ def train_model(model, num_epochs, data_loader, optimizer, criterion):
 
 # Here are some other helper functions we will need.
 
-# In[11]:
+# In[ ]:
 
 
 ### DO NOT EDIT ###
@@ -634,7 +634,7 @@ def accuracy(output, labels):
 
 # Now you can instantiate your model. We provide you with some recommended hyperparameters; you should be able to get the desired accuracy with these, but feel free to play around with them.
 
-# In[12]:
+# In[ ]:
 
 
 if __name__=='__main__':
@@ -657,7 +657,7 @@ if __name__=='__main__':
 # 
 # We also define the **optimizer**, which performs gradient descent. We use the Adam optimizer (https://arxiv.org/pdf/1412.6980.pdf), which has been shown to work well on these types of models.
 
-# In[13]:
+# In[ ]:
 
 
 import torch.optim as optim
