@@ -232,7 +232,8 @@ class TextDataset(data.Dataset):
             converted_preprocessed_sentence.append(self.word2idx[END])
 
             # print(f"testset_label: {testset_label}, converted preprocessed_sentence:{converted_preprocessed_sentence}")
-            self.textual_ids.append([testset_label,converted_preprocessed_sentence])
+            # self.textual_ids.append([testset_label,converted_preprocessed_sentence])
+            self.textual_ids.append(converted_preprocessed_sentence)
             # print(f"self.textual_ids is: {self.textual_ids}")
 
         pass
@@ -247,11 +248,12 @@ class TextDataset(data.Dataset):
 
         ##### TODO #####
         review = self.examples[idx]
-        indice_review = self.textual_ids[idx][1]
+        indice_review = self.textual_ids[idx]
         # print(f"indice review is: {indice_review}")
 
         if len(indice_review) >= self.max_len:
-            indice_review_long_tensor = torch.Tensor(indice_review[0:self.max_len])
+            indice_review_long_tensor = torch.LongTensor(indice_review[0:self.max_len])
+
         elif len(indice_review) < self.max_len:
             padding = [self.word2idx[PAD]] * (self.max_len - len(indice_review))
             padded_version = indice_review + padding
@@ -589,9 +591,10 @@ class CNN(nn.Module):
         # x = self.dense_layer(self.relu(x))
 
         linear = (self.dense_layer(dropout))
-        # print(f"linear is: {linear}, shape: {linear.shape}")
+        # print(f"linear is: {linear}, shape: {linear.shape}, linear dtype: {linear.dtype}")
 
-        linear = linear.type(torch.int64)
+
+        # linear = linear.type(torch.int32)
 
         ##### NOTE: Do not apply a sigmoid or softmax to the final output - done in training method!
 
@@ -712,7 +715,7 @@ if __name__ == '__main__':
 if __name__=='__main__':
     THRESHOLD = 5 # Don't change this
     MAX_LEN = 200 # Don't change this
-    BATCH_SIZE = 128 # Feel free to try other batch sizes
+    BATCH_SIZE = 16 # Feel free to try other batch sizes
 
     train_dataset = TextDataset(train_data, 'train', THRESHOLD, MAX_LEN)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2, drop_last=True)
@@ -741,10 +744,13 @@ def train_model(model, num_epochs, data_loader, optimizer, criterion):
         for texts, labels in data_loader:
             texts = texts.to(DEVICE) # shape: [batch_size, MAX_LEN]
             labels = labels.to(DEVICE) # shape: [batch_size]
+            # print(f"labels is: {labels}, labels shape: {labels.shape}, labels dtype: {labels.dtype}")
 
             optimizer.zero_grad()
 
             output = model(texts)
+            # print(f"output is: {output}, output shape: {output.shape}, output dtype: {output.dtype}")
+
             acc = accuracy(output, labels)
             
             loss = criterion(output, labels)
@@ -822,7 +828,7 @@ if __name__=='__main__':
 
 
 if __name__=='__main__':
-    N_EPOCHS = 10 # Feel free to change this
+    N_EPOCHS = 30 # Feel free to change this
 
     # train model for N_EPOCHS epochs
     train_model(cnn_model, N_EPOCHS, train_loader, optimizer, criterion)
@@ -834,7 +840,7 @@ if __name__=='__main__':
 # 
 # To pass the autograder for the CNN, you will need to achieve **82% accuracy** on the hidden test set on Gradescope. Note that the Gradescope test set is very similar, and the accuracies between the two datasets should be comparable.
 
-# In[ ]:
+# In[17]:
 
 
 ### DO NOT EDIT ###
@@ -877,7 +883,7 @@ def evaluate(model, data_loader, criterion, use_tqdm=False):
     return predictions, full_acc, full_loss
 
 
-# In[ ]:
+# In[18]:
 
 
 if __name__=='__main__':
@@ -891,7 +897,7 @@ if __name__=='__main__':
 # 
 # First, you will define the RNN. As with the CNN, we provide you with the skeleton of the class, and you need to fill in parts of the `__init__(...)` and `forward(...)` methods. Each of these functions is worth 10 points.
 
-# In[ ]:
+# In[19]:
 
 
 class RNN(nn.Module):
@@ -947,7 +953,7 @@ class RNN(nn.Module):
 # 
 # The code below runs a sanity check for your `RNN` class. The tests are similar to the hidden ones in Gradescope. However, note that passing the sanity check does <b>not</b> guarantee that you will pass the autograder; it is intended to help you debug.
 
-# In[ ]:
+# In[20]:
 
 
 ### DO NOT EDIT ###
@@ -972,7 +978,7 @@ if __name__ == '__main__':
 # ## Train RNN Model
 # First, we initialize the train and test dataloaders.
 
-# In[ ]:
+# In[21]:
 
 
 if __name__=='__main__':
@@ -989,7 +995,7 @@ if __name__=='__main__':
 
 # Now you can instantiate your model. We provide you with some recommended hyperparameters; you should be able to get the desired accuracy with these, but feel free to play around with them.
 
-# In[ ]:
+# In[22]:
 
 
 if __name__=='__main__':
@@ -1010,7 +1016,7 @@ if __name__=='__main__':
 
 # Here, we create the criterion and optimizer; as with the CNN, we use cross-entropy loss and Adam optimization.
 
-# In[ ]:
+# In[23]:
 
 
 if __name__=='__main__':    
@@ -1059,7 +1065,7 @@ if __name__=='__main__':
 # 1.   `cnn.pt`, the saved version of your `cnn_model`
 # 1.   `rnn.pt`, the saved version of your `rnn_model`
 
-# In[ ]:
+# In[24]:
 
 
 ### DO NOT EDIT ###
