@@ -715,7 +715,7 @@ if __name__ == '__main__':
 if __name__=='__main__':
     THRESHOLD = 5 # Don't change this
     MAX_LEN = 200 # Don't change this
-    BATCH_SIZE = 16 # Feel free to try other batch sizes
+    BATCH_SIZE = 128 # Feel free to try other batch sizes
 
     train_dataset = TextDataset(train_data, 'train', THRESHOLD, MAX_LEN)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2, drop_last=True)
@@ -828,7 +828,7 @@ if __name__=='__main__':
 
 
 if __name__=='__main__':
-    N_EPOCHS = 30 # Feel free to change this
+    N_EPOCHS = 20 # Feel free to change this
 
     # train model for N_EPOCHS epochs
     train_model(cnn_model, N_EPOCHS, train_loader, optimizer, criterion)
@@ -1065,7 +1065,7 @@ if __name__=='__main__':
 # 1.   `cnn.pt`, the saved version of your `cnn_model`
 # 1.   `rnn.pt`, the saved version of your `rnn_model`
 
-# In[24]:
+# In[ ]:
 
 
 ### DO NOT EDIT ###
