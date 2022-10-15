@@ -828,7 +828,7 @@ if __name__=='__main__':
 
 
 if __name__=='__main__':
-    N_EPOCHS = 20 # Feel free to change this
+    N_EPOCHS = 15 # Feel free to change this == 20 == best
 
     # train model for N_EPOCHS epochs
     train_model(cnn_model, N_EPOCHS, train_loader, optimizer, criterion)
@@ -888,6 +888,7 @@ def evaluate(model, data_loader, criterion, use_tqdm=False):
 
 if __name__=='__main__':
     evaluate(cnn_model, test_loader, criterion, use_tqdm=True) # Compute test data accuracy
+    # pass
 
 
 # # Step 4: Train a Recurrent Neural Network (RNN) [40 points]
@@ -910,15 +911,30 @@ class RNN(nn.Module):
 
         # Create an embedding layer (https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html)
         #   to represent the words in your vocabulary. Make sure to use vocab_size, embed_size, and pad_idx here.
-
+        self.embedding = nn.Embedding(vocab_size, embed_size, padding_idx=pad_idx)
+        self.embed_size = embed_size
         # Create a recurrent network (use nn.GRU, not nn.LSTM) with batch_first = True
         # Make sure you use hidden_size, num_layers, dropout, and bidirectional here.
-        
-        # Create a dropout layer (nn.Dropout) using dropout
+        self.GRU = nn.GRU(input_size=embed_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True, dropout=dropout, bidirectional=bidirectional).to(DEVICE)
 
-        # Define a linear layer (nn.Linear) that consists of num_classes units 
+
+        if bidirectional==True:
+            self.D =2
+        elif bidirectional==False:
+            self.D=1
+
+        # self.initial_state_h0 = 0
+
+
+        # Create a dropout layer (nn.Dropout) using dropout
+        self.dropout_layer = nn.Dropout(dropout).to(DEVICE)
+
+        # Define a linear layer (nn.Linear) that consists of num_classes units
         #   and takes as input the output of the last timestep. In the bidirectional case, you should concatenate
         #   the output of the last timestep of the forward direction with the output of the last timestep of the backward direction).
+
+        self.dense_layer = nn.Linear(hidden_size*self.D, num_classes).to(DEVICE)
+
 
 
     def forward(self, texts):
@@ -928,25 +944,67 @@ class RNN(nn.Module):
         Returns output: Tensor [batch_size, num_classes]
         """
         ##### TODO #####
-
+        # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         # Pass texts through your embedding layer to convert from word ids to word embeddings
         #   Resulting: shape: [batch_size, max_len, embed_size]
+        texts = texts.type(torch.int64)
+        final_embedding = (self.embedding(texts))
+        final_embedding_gpu = final_embedding.to(DEVICE)
+        # print(f"  final_embedding_gpu: {final_embedding_gpu.shape}, final_embedding_gpu dtype: {final_embedding_gpu.dtype}, final_embedding_gpu device: {final_embedding_gpu.get_device()}")
+
+        # print('Content of embedding:', final_embedding)
+        # print('Shape of embedding:', final_embedding.shape, '\n')
+        # print('Type of embedding:', final_embedding.dtype, '\n')
+        batch_size, max_len = texts.shape
+        # print(f"batch_size: {batch_size}, max_len: {max_len}")
+        # print(f"(batch_size, max_len, self.hidden_size): ({batch_size}, {max_len}, {self.hidden_size})")
+
+        initial_state_h0 = torch.nn.parameter.Parameter(torch.randn(self.D*self.num_layers, batch_size, self.hidden_size)).to(DEVICE)
+        # print(f"  initial_state_h0: {initial_state_h0.shape}, initial_state_h0 dtype: {initial_state_h0.dtype}, initial_state_h0 device: {initial_state_h0.get_device()}")
+
+        # gru_input = torch.randn(batch_size, max_len, self.hidden_size).to(device)
+        # print(f"  gru_input: {gru_input.shape}, gru_input dtype: {gru_input.dtype}, gru_input device: {gru_input.get_device()}")
+        # # h_out = 32
+
+
 
         # Pass the result through your recurrent network
         #   See PyTorch documentation for resulting shape for nn.GRU
-        
+        output, hn = self.GRU(final_embedding_gpu, initial_state_h0)
+        # print(f"  output: {output.shape}, output dtype: {output.dtype}")
+        # print(f" hn: {hn.shape}, hn dtype: {hn.dtype}")
+
+
         # Concatenate the outputs of the last timestep for each direction (see torch.cat(...))
         #   This depends on whether or not your model is bidirectional.
         #   Resulting shape: [batch_size, num_dirs*hidden_size]
-        
+        # concatenated_output = torch.cat([h for h in output], dim=0)
+        concatenated_output = output[:, -1, :]
+        # print(f"concatenated_output: {concatenated_output.shape}, concatenated_output dtype: {concatenated_output.dtype}")
+
+        # batch_size: 1, max_len: 150
+        # (batch_size, max_len, self.hidden_size): (1, 150, 32)
+        #   gru_input: torch.Size([1, 150, 16]), gru_input dtype: torch.float32
+        #   initial_state_h0: torch.Size([4, 1, 32]), initial_state_h0 dtype: torch.float32
+        #   output: torch.Size([1, 150, 64]), output dtype: torch.float32
+        #  hn: torch.Size([4, 1, 32]), hn dtype: torch.float32
+        #  concatenated_output: torch.Size([4, 32]), concatenated_output dtype: torch.float32
+        #  dropout: torch.Size([4, 32]), dropout dtype: torch.float32
+
         # Apply dropout
+        dropout = self.dropout_layer(concatenated_output)
+        # print(f" dropout: {dropout.shape}, dropout dtype: {dropout.dtype}")
 
         # Pass your output through the linear layer and return its output 
         #   Resulting shape: [batch_size, num_classes]
+        linear_output = self.dense_layer(dropout)
+        # print(f" linear_output: {linear_output.shape}, linear_output dtype: {linear_output.dtype}")
+
 
         ##### NOTE: Do not apply a sigmoid or softmax to the final output - done in training method!
-        
-        return None
+
+
+        return linear_output
 
 
 # ##Sanity Check: RNN Model
@@ -984,7 +1042,7 @@ if __name__ == '__main__':
 if __name__=='__main__':
     THRESHOLD = 5 # Don't change this
     MAX_LEN = 200 # Don't change this
-    BATCH_SIZE = 32 # Feel free to try other batch sizes
+    BATCH_SIZE = 64 # Feel free to try other batch sizes
 
     train_dataset = TextDataset(train_data, 'train', THRESHOLD, MAX_LEN)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2, drop_last=True)
@@ -1020,7 +1078,7 @@ if __name__=='__main__':
 
 
 if __name__=='__main__':    
-    LEARNING_RATE = 5e-4 # Feel free to try other learning rates
+    LEARNING_RATE = 6e-4 # Feel free to try other learning rates
 
     # Define your loss function
     criterion = nn.CrossEntropyLoss().to(DEVICE)
@@ -1031,11 +1089,11 @@ if __name__=='__main__':
 
 # Finally, we can train the model. We use the same `train_model(...)` function that we defined for the CNN. If the model is implemented correctly and you're using the GPU, this cell should take around <b>2 minutes</b> (or less). Feel free to change the number of epochs.
 
-# In[ ]:
+# In[24]:
 
 
 if __name__=='__main__':    
-    N_EPOCHS = 6 # Feel free to change this
+    N_EPOCHS = 8 # Feel free to change this
     
     # train model for N_EPOCHS epochs
     train_model(rnn_model, N_EPOCHS, train_loader, optimizer, criterion)
@@ -1047,7 +1105,7 @@ if __name__=='__main__':
 # 
 # To pass the autograder for the RNN, you will need to achieve **82% accuracy** on the hidden test set on Gradescope. Note that the Gradescope test set is very similar, and the accuracies between the two datasets should be comparable.
 
-# In[ ]:
+# In[25]:
 
 
 if __name__=='__main__':    
@@ -1065,7 +1123,7 @@ if __name__=='__main__':
 # 1.   `cnn.pt`, the saved version of your `cnn_model`
 # 1.   `rnn.pt`, the saved version of your `rnn_model`
 
-# In[ ]:
+# In[26]:
 
 
 ### DO NOT EDIT ###
@@ -1094,23 +1152,23 @@ if __name__=='__main__':
     if rnn_exists:
         print("Saving RNN model....") 
         # torch.save(rnn_model, "drive/My Drive/rnn.pt")
-        torch.save(cnn_model, "saved_models/rnn.pt")
+        torch.save(rnn_model, "saved_models/rnn.pt")
     print("Done!")
 
 
-# In[ ]:
+# In[26]:
 
 
 
 
 
-# In[ ]:
+# In[26]:
 
 
 
 
 
-# In[ ]:
+# In[26]:
 
 
 
