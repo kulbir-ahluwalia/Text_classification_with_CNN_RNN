@@ -214,7 +214,9 @@ class TextDataset(data.Dataset):
         sorted_items = (sorted(self.map_token_to_unigram_frequency.items()))
         print(sorted_items)
 
-        temp_dict = {}
+
+        # Made the dictionaries such that each word was always mapped to a particular index.
+        # Then removed all indexes and renamed them to (0,len(vocab)-1).
         token_indice = 3
         for token, freq in sorted(self.map_token_to_unigram_frequency.items()):
             # print(f"token: {token}, freq: {freq}")
