@@ -214,13 +214,13 @@ class TextDataset(data.Dataset):
         sorted_items = (sorted(self.map_token_to_unigram_frequency.items()))
         print(sorted_items)
 
-
+        temp_dict = {}
         token_indice = 3
         for token, freq in sorted(self.map_token_to_unigram_frequency.items()):
             # print(f"token: {token}, freq: {freq}")
             # self.idx2word[index] = token
             if freq >= self.threshold:
-                self.idx2word[token_indice] = token
+                # self.idx2word[token_indice] = token
                 self.word2idx[token] = token_indice
             token_indice += 1
 
@@ -1148,7 +1148,7 @@ if __name__=='__main__':
 
 
 if __name__=='__main__':    
-    N_EPOCHS = 8 # Feel free to change this
+    N_EPOCHS = 7 # Feel free to change this
     
     # train model for N_EPOCHS epochs
     train_model(rnn_model, N_EPOCHS, train_loader, optimizer, criterion)
