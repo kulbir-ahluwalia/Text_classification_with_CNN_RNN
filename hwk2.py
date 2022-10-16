@@ -149,12 +149,15 @@ class TextDataset(data.Dataset):
         if split == 'train':
             self.build_dictionary()
         self.vocab_size = len(self.word2idx)
+
+        self.vocabulary = []
         
         # Convert text to indices
         self.textual_ids = []
         self.convert_text()
 
-    
+    # def default_function_for_default_dict(self):
+    #     return
     def build_dictionary(self): 
         '''
         Build the dictionaries idx2word and word2idx. This is only called when split='train', as these
@@ -177,9 +180,11 @@ class TextDataset(data.Dataset):
 
         # ('pos', ['Your', 'life', 'is', 'good', 'when', 'you', 'have', 'money', ',', 'success', 'and', 'health'])
 
-        for data in self.examples:           #iterate through preprocessed sentences
+        # map_token_to_unigram_frequency = defaultdict(lambda: " not")
+
+        for build_dict_data in self.examples:           #iterate through preprocessed sentences
             # print(f"data: {data}")
-            testset_label, preprocessed_sentence = data[0], data[1]
+            testset_label, preprocessed_sentence = build_dict_data[0], build_dict_data[1]
             # print(f"testset_label: {testset_label}, preprocessed_sentence:{preprocessed_sentence}")
             for token in preprocessed_sentence:             #iterate through each token
                 # print(f"lowercase token is: {token}")
@@ -187,19 +192,57 @@ class TextDataset(data.Dataset):
 
                 if token not in self.map_token_to_unigram_frequency.keys():
                     self.map_token_to_unigram_frequency[token] = 0          # add token as key if not present as a key in map_token_to_unigram_frequency
-                self.map_token_to_unigram_frequency[token] += 1             # increment the frequency of unigram
+                if token in self.map_token_to_unigram_frequency.keys():
+                    self.map_token_to_unigram_frequency[token] += 1          # add token as key if not present as a key in map_token_to_unigram_frequency
 
 
-        # print(f"self.map_token_to_unigram_frequency: {self.map_token_to_unigram_frequency}")
-        index = 3
-        for token, freq in self.map_token_to_unigram_frequency.items():
+        print(f"self.map_token_to_unigram_frequency: {self.map_token_to_unigram_frequency}")
+
+        # Also make sure your vocabulary is deterministic - if you make it multiple times,
+        # you should always get the same word to index mapping.
+        # Otherwise, you could get an issue where at test time you are basically mapping words to
+        # different indexes than it was trained under, causing basically random embeddings
+        # and thus 50% accuracy.
+
+        # if has_passed and sorted(list(dataset.idx2word.keys())) != list(range(0, dataset.vocab_size)):
+        #     has_passed, message = False, 'dataset.idx2word must have keys ranging from 0 to dataset.vocab_size-1. Keys in your dataset.idx2word: ' + str(sorted(list(dataset.idx2word.keys())))
+
+        items = self.map_token_to_unigram_frequency.items()
+        # print(f"items is: {items}")
+
+        # sort in lexicographical order
+        sorted_items = (sorted(self.map_token_to_unigram_frequency.items()))
+        print(sorted_items)
+
+
+        token_indice = 3
+        for token, freq in sorted(self.map_token_to_unigram_frequency.items()):
+            # print(f"token: {token}, freq: {freq}")
+            # self.idx2word[index] = token
             if freq >= self.threshold:
-                self.idx2word[index] = token
-                self.word2idx[token] = index
-                index += 1
-        #
-        # print(f"self.idx2word: {self.idx2word}")
-        # print(f"self.word2idx: {self.word2idx}")
+                self.idx2word[token_indice] = token
+                self.word2idx[token] = token_indice
+            token_indice += 1
+
+        for index, (token, token_indice) in enumerate(self.word2idx.items()):
+            self.idx2word[index] = token
+            self.word2idx[token] = index
+            print(f"index: {index}, token: {token}, token_indice{token_indice}")
+
+        # for token, token_indice in temp_dict.keys():
+        #     if freq >= self.threshold:
+
+
+        # vocab_size = len(self.word2idx)
+        # self.vocabulary = [self.idx2word[i] for i in range(vocab_size)]
+
+
+        # --- TEST: idx2word and word2idx dictionaries ---
+        #     items is: dict_items([('your', 2), ('life', 3), ('is', 3), ('good', 2), ('when', 3), ('you', 3), ('have', 2), ('money', 2), (',', 2), ('success', 2), ('and', 2), ('health', 2), ('bad', 2), ('got', 2), ('not', 2), ('a', 2), ('lot', 2)])
+
+
+        print(f"self.idx2word: {self.idx2word}")
+        print(f"self.word2idx: {self.word2idx}")
 
         pass
     
@@ -212,9 +255,9 @@ class TextDataset(data.Dataset):
         ##### TODO #####
         # Remember to replace a word with the <UNK> token if it does not exist in the word2idx dictionary.
         # Remember to append the <END> token to the end of each review.
-        for data in self.examples:           #iterate through preprocessed sentences
-            # print(f"data: {data}")
-            testset_label, preprocessed_sentence = data[0], data[1]
+        for convert_text_example in self.examples:           #iterate through preprocessed sentences
+            # print(f"convert_text_example: {convert_text_example}")
+            testset_label, preprocessed_sentence = convert_text_example[0], convert_text_example[1]
             converted_preprocessed_sentence = []
             # print(f"testset_label: {testset_label}, preprocessed_sentence:{preprocessed_sentence}")
             for token_index in range(len(preprocessed_sentence)):             #iterate through each token
@@ -258,8 +301,8 @@ class TextDataset(data.Dataset):
             padding = [self.word2idx[PAD]] * (self.max_len - len(indice_review))
             padded_version = indice_review + padding
             # print(f"padding list is: {padding} and padded version: {padded_version}")
+            # indice_review_long_tensor = padded_version.type(torch.int64)
             indice_review_long_tensor = torch.LongTensor(padded_version)
-            # indice_review_long_tensor = torch.Tensor(padded_version)
 
 
         # print('Content of indice_review_long_tensor:', indice_review_long_tensor)
@@ -360,6 +403,9 @@ def sanityCheckDataSet():
     idxes = [0,1]
     combos = [{'threshold': t, 'max_len': m, 'idx': idx} for t in thresholds for m in max_lens for idx in idxes]
     correct = [(torch.tensor([3, 4, 5]), torch.tensor(1)), (torch.tensor([ 4,  5, 15]), torch.tensor(0)), (torch.tensor([ 3,  4,  5,  6,  7,  8,  9, 10]), torch.tensor(1)), (torch.tensor([ 4,  5, 15,  7,  8, 16, 17, 18]), torch.tensor(0)), (torch.tensor([ 3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14,  1,  0,  0]), torch.tensor(1)), (torch.tensor([ 4,  5, 15,  7,  8, 16, 17, 18, 19,  1,  0,  0,  0,  0,  0]), torch.tensor(0)), (torch.tensor([2, 3, 4]), torch.tensor(1)), (torch.tensor([3, 4, 2]), torch.tensor(0)), (torch.tensor([2, 3, 4, 2, 5, 6, 2, 2]), torch.tensor(1)), (torch.tensor([3, 4, 2, 5, 6, 2, 2, 2]), torch.tensor(0)), (torch.tensor([2, 3, 4, 2, 5, 6, 2, 2, 2, 2, 2, 2, 1, 0, 0]), torch.tensor(1)), (torch.tensor([3, 4, 2, 5, 6, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0]), torch.tensor(0)), (torch.tensor([2, 2, 2]), torch.tensor(1)), (torch.tensor([2, 2, 2]), torch.tensor(0)), (torch.tensor([2, 2, 2, 2, 2, 2, 2, 2]), torch.tensor(1)), (torch.tensor([2, 2, 2, 2, 2, 2, 2, 2]), torch.tensor(0)), (torch.tensor([2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0]), torch.tensor(1)), (torch.tensor([2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0]), torch.tensor(0))]
+
+
+
     for i in range(len(combos)):
         combo = combos[i]
         dataset = TextDataset(data, 'train', threshold=combo['threshold'], max_len=combo['max_len'])
@@ -428,6 +474,9 @@ class CNN(nn.Module):
         super(CNN, self).__init__()
         
         ##### TODO #####
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
         # Create an embedding layer (https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html)
         #   to represent the words in your vocabulary. Make sure to use vocab_size, embed_size, and pad_idx here.
         # print(f" vocab size is: {vocab_size}, embed size is: {embed_size}, filter heights: {filter_heights}")
@@ -489,13 +538,15 @@ class CNN(nn.Module):
         #
         """
         ##### TODO #####
-
         # print('Content of texts:', texts)
         # print('Shape of texts:', texts.shape, '\n')
         # print('Type of texts:', texts.dtype, '\n')
 
         texts = texts.type(torch.int64)
         final_embedding = self.embedding(texts)
+
+
+
 
         # print('Content of embedding:', final_embedding)
         # print('Shape of embedding:', final_embedding.shape, '\n')
@@ -944,12 +995,16 @@ class RNN(nn.Module):
         Returns output: Tensor [batch_size, num_classes]
         """
         ##### TODO #####
-        # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         # Pass texts through your embedding layer to convert from word ids to word embeddings
         #   Resulting: shape: [batch_size, max_len, embed_size]
         texts = texts.type(torch.int64)
+        # print('Content of embedding:', texts)
+        # print('Shape of embedding:', texts.shape, '\n')
+        # print('Type of embedding:', texts.dtype, '\n')
+
         final_embedding = (self.embedding(texts))
-        final_embedding_gpu = final_embedding.to(DEVICE)
+        final_embedding_gpu = final_embedding.to(device)
         # print(f"  final_embedding_gpu: {final_embedding_gpu.shape}, final_embedding_gpu dtype: {final_embedding_gpu.dtype}, final_embedding_gpu device: {final_embedding_gpu.get_device()}")
 
         # print('Content of embedding:', final_embedding)
@@ -959,7 +1014,7 @@ class RNN(nn.Module):
         # print(f"batch_size: {batch_size}, max_len: {max_len}")
         # print(f"(batch_size, max_len, self.hidden_size): ({batch_size}, {max_len}, {self.hidden_size})")
 
-        initial_state_h0 = torch.nn.parameter.Parameter(torch.randn(self.D*self.num_layers, batch_size, self.hidden_size)).to(DEVICE)
+        initial_state_h0 = torch.nn.parameter.Parameter(torch.randn(self.D*self.num_layers, batch_size, self.hidden_size)).to(device)
         # print(f"  initial_state_h0: {initial_state_h0.shape}, initial_state_h0 dtype: {initial_state_h0.dtype}, initial_state_h0 device: {initial_state_h0.get_device()}")
 
         # gru_input = torch.randn(batch_size, max_len, self.hidden_size).to(device)
